@@ -1,0 +1,64 @@
+name: kocka-loop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  URL: "https://www.finance.si/najbogatejsi-slovenci"
+  MARKER: "TESTKOCKA-7f3a"
+  # Ko je ta cas presezen, se veriga zaustavi (2026-11-17 03:15 po ljubljanskem casu)
+  STOP_UTC: "2026-11-17 02:15:00"
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preverjaj vsako minuto
+        run: |
+          git config user.name "kocka-monitor"
+          git config user.email "kocka-monitor@users.noreply.github.com"
+          [ -f log-loop.csv ] || echo "cas_utc,cas_ljubljana,stanje" > log-loop.csv
+          END=$(( $(date +%s) + 5*3600 + 45*60 ))
+          N=0
+          while [ "$(date +%s)" -lt "$END" ]; do
+            NOW_UTC=$(date -u +"%Y-%m-%d %H:%M:%S")
+            NOW_LJ=$(TZ=Europe/Ljubljana date +"%Y-%m-%d %H:%M:%S")
+            CODE=$(curl -s -L -m 20 -o body.html -w "%{http_code}" \
+              -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
+              "${URL}?nocache=$(date +%s)" || echo "ERR")
+            if [ "$CODE" != "200" ]; then
+              STATE="NAPAKA_HTTP_${CODE}"
+            elif grep -q "$MARKER" body.html; then
+              STATE="PRISOTNA"
+            else
+              STATE="NI_PRISOTNA"
+            fi
+            echo "${NOW_UTC},${NOW_LJ},${STATE}" >> log-loop.csv
+            N=$((N+1))
+            if [ $((N % 5)) -eq 0 ]; then
+              git add log-loop.csv
+              git commit -qm "loop" || true
+              git pull -q --rebase || true
+              git push -q || true
+            fi
+            sleep 55
+          done
+          git add log-loop.csv
+          git commit -qm "loop konec" || true
+          git pull -q --rebase || true
+          git push -q || true
+
+      - name: Zazeni naslednji krog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%s)" -lt "$(date -u -d "$STOP_UTC" +%s)" ]; then
+            gh workflow run loop.yml --ref "${{ github.ref_name }}"
+          fi
