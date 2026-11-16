@@ -1,0 +1,51 @@
+name: kocka-monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kocka-monitor
+  cancel-in-progress: false
+
+env:
+  URL: "https://SEM-VSTAVI-URL-STRANI"
+  MARKER: "TESTKOCKA-7f3a"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preveri stran
+        run: |
+          NOW_UTC=$(date -u +"%Y-%m-%d %H:%M:%S")
+          NOW_LJ=$(TZ=Europe/Ljubljana date +"%Y-%m-%d %H:%M:%S")
+          TS=$(date +%s)
+          RESP=$(curl -s -L -m 30 -o body.html -w "%{http_code}" \
+            -H "Cache-Control: no-cache" -H "Pragma: no-cache" \
+            "${URL}?nocache=${TS}" || echo "ERR")
+          if [ "$RESP" != "200" ]; then
+            STATE="NAPAKA_HTTP_${RESP}"
+          elif grep -q "$MARKER" body.html; then
+            STATE="PRISOTNA"
+          else
+            STATE="NI_PRISOTNA"
+          fi
+          [ -f log.csv ] || echo "cas_utc,cas_ljubljana,stanje" > log.csv
+          echo "${NOW_UTC},${NOW_LJ},${STATE}" >> log.csv
+          rm -f body.html
+
+      - name: Shrani dnevnik
+        run: |
+          git config user.name "kocka-monitor"
+          git config user.email "kocka-monitor@users.noreply.github.com"
+          git add log.csv
+          git commit -m "check" || exit 0
+          git pull --rebase
+          git push
