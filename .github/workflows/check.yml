@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  URL: "https://SEM-VSTAVI-URL-STRANI"
+  URL: "https://www.finance.si/najbogatejsi-slovenci"
   MARKER: "TESTKOCKA-7f3a"
 
 jobs:
