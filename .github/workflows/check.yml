@@ -8,10 +8,6 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: kocka-monitor
-  cancel-in-progress: false
-
 env:
   URL: "https://www.finance.si/najbogatejsi-slovenci"
   MARKER: "TESTKOCKA-7f3a"
