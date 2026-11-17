@@ -10,8 +10,8 @@ permissions:
 env:
   URL: "https://www.finance.si/najbogatejsi-slovenci"
   MARKER: "TESTKOCKA-7f3a"
-  # Ko je ta cas presezen, se veriga zaustavi (2026-11-17 07:00 po ljubljanskem casu)
-  STOP_UTC: "2026-11-17 06:00:00"
+  # Ko je ta cas presezen, se veriga zaustavi (2026-11-17 14:00 po ljubljanskem casu)
+  STOP_UTC: "2026-11-17 13:00:00"
 
 jobs:
   loop:
